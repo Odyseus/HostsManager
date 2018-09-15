@@ -13,7 +13,7 @@ root_folder : str
 import os
 import sys
 
-from .python_utils import bottle
+from python_utils import bottle
 
 root_folder = os.path.realpath(os.path.abspath(os.path.join(
     os.path.normpath(os.getcwd()))))
@@ -66,6 +66,9 @@ class HostsManager():
         return file_data
 
 
+# FIXME: Convert this script into a module.
+# Just because it's the right thing to do.
+# As it is right now, everything works as "it should".
 if __name__ == "__main__":
     args = sys.argv[1:]
 
