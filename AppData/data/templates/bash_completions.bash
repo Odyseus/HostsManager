@@ -4,7 +4,7 @@
 # https://unix.stackexchange.com/a/55622
 
 _have {executable_name} &&
-_decide_nospace(){
+_decide_nospace_{current_date}(){
     if [[ ${1} == "--"*"=" ]] ; then
         compopt -o nospace
     fi
@@ -77,11 +77,11 @@ __hosts_manager_app_{current_date}(){
     "run")
         COMPREPLY=( $(compgen -W "update build install -d --flush-dns-cache -p --profile= \
 -o --override= -f --force-update" -- "${cur}") )
-        _decide_nospace ${COMPREPLY[0]}
+        _decide_nospace_{current_date} ${COMPREPLY[0]}
         ;;
     "server")
         COMPREPLY=( $(compgen -W "start stop restart --host= --port=" -- "${cur}") )
-        _decide_nospace ${COMPREPLY[0]}
+        _decide_nospace_{current_date} ${COMPREPLY[0]}
         ;;
     "generate")
         COMPREPLY=( $(compgen -W 'system_executable new_profile' -- "$cur" ) )
