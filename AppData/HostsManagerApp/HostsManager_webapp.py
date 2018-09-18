@@ -13,7 +13,10 @@ root_folder : str
 import os
 import sys
 
-from python_utils import bottle
+try:
+    from python_utils import bottle
+except (ImportError, SystemError):
+    from .python_utils import bottle
 
 root_folder = os.path.realpath(os.path.abspath(os.path.join(
     os.path.normpath(os.getcwd()))))
