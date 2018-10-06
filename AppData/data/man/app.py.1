@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "APP.PY" "1" "Sep 22, 2018" "" "Hosts Manager"
+.TH "APP.PY" "1" "Oct 06, 2018" "" "Hosts Manager"
 .SH NAME
 app.py \- A CLI utility to manage hosts files on GNU/Linux.
 .
@@ -33,7 +33,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .SH HINT
 .sp
 This Python application can generate a system executable with Bash completions support. See \fBapp.py generate\fP\&.
-.SH SYNOPSIS
+.SH CLI SYNOPSIS
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -68,6 +68,33 @@ Application inspired and heavily based on the \fBupdateHostsFile.py\fP Python sc
 Python 3.5+.
 .IP \(bu 2
 \fBpython\-slugify\fP module.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH DETAILED USAGE
+.SS CLI options
+.INDENT 0.0
+.IP \(bu 2
+\fB\-h\fP or \fB\-\-help\fP: Display this application basic help screen.
+.IP \(bu 2
+\fB\-\-manual\fP: Display this application manual.
+.IP \(bu 2
+\fB\-\-version\fP: Show this application version.
+.UNINDENT
+.SS Commands
+.SS app.py generate
+.SS Sub\-commands
+.INDENT 0.0
+.IP \(bu 2
+\fBsystem_executable\fP: Create an executable for the \fBapp.py\fP application on the system \fBPATH\fP to be able to run it from anywhere.
+.INDENT 2.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+The system executable creation process will ask for an executable name and the absolute path to store the executable file (the default is \fB$HOME/.local/bin\fP).
+.IP \(bu 2
+It will also ask for bash completions creation.
+.UNINDENT
 .UNINDENT
 .UNINDENT
 .UNINDENT
