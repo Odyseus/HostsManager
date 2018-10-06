@@ -45,7 +45,7 @@ class HostsManager():
         port : int
             Port number used by the web application.
         """
-        super(HostsManager, self).__init__()
+        super().__init__()
         self.host = host
         self.port = port
 

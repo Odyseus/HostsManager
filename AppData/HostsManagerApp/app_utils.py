@@ -21,15 +21,23 @@ import re
 import sys
 import time
 
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 from ipaddress import ip_address
 from runpy import run_path
 from shutil import copy2
 from socket import gethostname
-from subprocess import call, Popen, STDOUT, PIPE
+from subprocess import PIPE
+from subprocess import Popen
+from subprocess import STDOUT
+from subprocess import call
 from tempfile import NamedTemporaryFile
 
-from .python_utils import exceptions, tqdm, tqdm_wget, file_utils, cmd_utils
+from .python_utils import cmd_utils
+from .python_utils import exceptions
+from .python_utils import file_utils
+from .python_utils import tqdm
+from .python_utils import tqdm_wget
 from .python_utils.ansi_colors import Ansi
 
 try:
@@ -75,7 +83,7 @@ class ValidatedOverrides(object):
         raw_overrides : list
             The raw list of options as passed to the CLI.
         """
-        super(ValidatedOverrides, self).__init__()
+        super().__init__()
         self.raw_overrides = raw_overrides
         self.valid_overrides = {}
         self.errors = []
@@ -283,7 +291,7 @@ ff02::2 ip6-allrouters
         exceptions.NoProfileNameProvided
             See <class :any:`exceptions.NoProfileNameProvided`>.
         """
-        super(HostsManager, self).__init__()
+        super().__init__()
         if not profile:
             raise exceptions.NoProfileNameProvided("No profile name was provided.")
 

@@ -17,23 +17,25 @@ import sys
 from threading import Thread
 
 from . import app_utils
-from .__init__ import __appname__, __appdescription__, __version__, __status__
-from .python_utils import exceptions, log_system, shell_utils, file_utils
-from .python_utils.docopt import docopt
-
-if sys.version_info < (3, 5):
-    raise exceptions.WrongPythonVersion()
+from .__init__ import __appdescription__
+from .__init__ import __appname__
+from .__init__ import __status__
+from .__init__ import __version__
+from .python_utils import cli_utils
+from .python_utils import exceptions
+from .python_utils import shell_utils
 
 
 root_folder = os.path.realpath(os.path.abspath(os.path.join(
     os.path.normpath(os.getcwd()))))
 
 
-docopt_doc = """{__appname__} {__version__} {__status__}
+docopt_doc = """{appname} {version} ({status})
 
-{__appdescription__}
+{appdescription}
 
 Usage:
+    app.py (-h | --help | --manual | --version | -d | --flush-dns-cache)
     app.py run (update | build | install) [update] [build] [install]
                (-p <name> | --profile=<name>)
                [-o <key=value>... | --override=<key=value>...]
@@ -43,12 +45,14 @@ Usage:
                   [--host=<host>]
                   [--port=<port>]
     app.py generate (system_executable | new_profile)
-    app.py (-h | --help | --version | -d | --flush-dns-cache)
 
 Options:
 
 -h, --help
     Show this screen.
+
+--manual
+    Show this application manual page.
 
 --version
     Show application version.
@@ -84,86 +88,67 @@ Sub-commands for the `generate` command:
     system_executable    Create an executable for this application on the system
                          PATH to be able to run it from anywhere.
 
-""".format(__appname__=__appname__,
-           __appdescription__=__appdescription__,
-           __version__=__version__,
-           __status__=__status__)
+""".format(appname=__appname__,
+           appdescription=__appdescription__,
+           version=__version__,
+           status=__status__)
 
 
-class CommandLineTool():
-    """Command line tool.
+class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
+    """Command line interface.
 
     It handles the arguments parsed by the docopt module.
 
     Attributes
     ----------
-    action : method
-        Set the method that will be executed when calling CommandLineTool.run().
-    force_update : bool
-        Ignore source update frequency and update its file/s anyway.
+    a : dict
+        Where docopt_args is stored.
     func_names : list
         The name of the functions to run.
-    host : str
-        Host name used by the web application.
     hosts_manager : object
         See <class :any:`app_utils.HostsManager`>.
-    logger : object
-        See <class :any:`LogSystem`>.
-    port : int
-        Port number used by the web application.
     """
+    # Execution order depends on the order the function names were appended.
+    func_names = []
 
-    def __init__(self, args):
+    def __init__(self, docopt_args):
         """
         Parameters
         ----------
-        args : dict
+        docopt_args : dict
             The dictionary of arguments as returned by docopt parser.
         """
-        super(CommandLineTool, self).__init__()
+        self.a = docopt_args
+        self._cli_header_blacklist = [self.a["--manual"]]
 
-        self.action = None
-        logs_storage_dir = "UserData/logs"
-        log_file = log_system.get_log_file(storage_dir=logs_storage_dir,
-                                           prefix="CLI")
-        file_utils.remove_surplus_files(logs_storage_dir, "CLI*")
-        self.logger = log_system.LogSystem(filename=log_file,
-                                           verbose=True)
+        super().__init__(__appname__, "UserData/logs")
 
-        self.force_update = args["--force-update"]
-        self.host = args["--host"]
-        self.port = args["--port"]
-        self.func_names = []
-
-        self.logger.info(shell_utils.get_cli_header(__appname__), date=False)
-        print("")
-
-        if args["generate"]:
-            if args["system_executable"]:
+        if self.a["--manual"]:
+            self.func_names.append("display_manual_page")
+        elif self.a["generate"]:
+            if self.a["system_executable"]:
                 self.func_names.append("system_executable_generation")
 
-            if args["new_profile"]:
+            if self.a["new_profile"]:
                 self.func_names.append("new_profile_generation")
-
-        if args["server"]:
+        elif self.a["server"]:
             self.logger.info("Command: server")
             self.logger.info("Arguments:")
 
-            if args["start"]:
+            if self.a["start"]:
                 self.logger.info("start")
                 self.func_names.append("http_server_start")
-            elif args["stop"]:
+            elif self.a["stop"]:
                 self.logger.info("stop")
                 self.func_names.append("http_server_stop")
-            elif args["restart"]:
+            elif self.a["restart"]:
                 self.logger.info("restart")
                 self.func_names.append("http_server_restart")
-
-        if args["run"]:
+        elif self.a["run"]:
             # Workaround docopt issue:
             # https://github.com/docopt/docopt/issues/134
             # Not perfect, but good enough for this particular usage case.
-            args_overrides = list(set(args["--override"]))
+            args_overrides = list(set(self.a["--override"]))
 
             raw_overrides = app_utils.ValidatedOverrides(args_overrides)
             override_errors = raw_overrides.get_errors()
@@ -178,25 +163,25 @@ class CommandLineTool():
 
                 sys.exit(0)
 
-            self.hosts_manager = app_utils.HostsManager(profile=args["--profile"],
+            self.hosts_manager = app_utils.HostsManager(profile=self.a["--profile"],
                                                         options_overrides=raw_overrides.get_valid_overrides(),
                                                         logger=self.logger)
             self.logger.info("Command: run")
             self.logger.info("Arguments:")
 
-            if args["update"]:
+            if self.a["update"]:
                 self.logger.info("update")
                 self.func_names.append("update_all_sources")
 
-            if args["build"]:
+            if self.a["build"]:
                 self.logger.info("build")
                 self.func_names.append("build_hosts_file")
 
-            if args["install"]:
+            if self.a["install"]:
                 self.logger.info("install")
                 self.func_names.append("install_hosts_file")
 
-        if args["--flush-dns-cache"]:
+        if self.a["--flush-dns-cache"]:
             self.func_names.append("flush_dns_cache")
 
     def run(self):
@@ -224,31 +209,29 @@ class CommandLineTool():
             raise exceptions.KeyboardInterruption()
 
     def update_all_sources(self):
-        """Summary
+        """See :any:`app_utils.HostsManager.update_all_sources`
         """
-        self.hosts_manager.update_all_sources(self.force_update)
+        self.hosts_manager.update_all_sources(self.a["--force-update"])
 
     def build_hosts_file(self):
-        """Summary
+        """See :any:`app_utils.HostsManager.build_hosts_file`
         """
         self.hosts_manager.build_hosts_file()
 
     def install_hosts_file(self):
-        """Summary
+        """See :any:`app_utils.HostsManager.install_hosts_file`
         """
         self.hosts_manager.install_hosts_file()
 
     def flush_dns_cache(self):
-        """Summary
+        """See :any:`app_utils.flush_dns_cache`
         """
         app_utils.flush_dns_cache(self.logger)
 
     def system_executable_generation(self):
-        """See :any:`template_utils.system_executable_generation`
+        """See :any:`cli_utils.CommandLineInterfaceSuper._system_executable_generation`.
         """
-        from .python_utils import template_utils
-
-        template_utils.system_executable_generation(
+        self._system_executable_generation(
             exec_name="hosts-manager-cli",
             app_root_folder=root_folder,
             sys_exec_template_path=os.path.join(
@@ -279,8 +262,8 @@ class CommandLineTool():
         # The "http_server" executable also uses os.execv() to launch the real web application.
         os.execv(cmd_path, [" "] + [action,
                                     "HostsManager",
-                                    self.host,
-                                    self.port])
+                                    self.a["--host"],
+                                    self.a["--port"]])
 
     def http_server_start(self):
         """Self explanatory.
@@ -297,22 +280,22 @@ class CommandLineTool():
         """
         self.http_server(action="restart")
 
+    def display_manual_page(self):
+        print("WTF")
+        """See :any:`cli_utils.CommandLineInterfaceSuper._display_manual_page`.
+        """
+        self._display_manual_page(os.path.join(root_folder, "AppData", "data", "man", "app.py.1"))
+
 
 def main():
-    """Initialize main command line interface.
-
-    Raises
-    ------
-    exceptions.BadExecutionLocation
-        Do not allow to run any command if the "flag" file isn't
-        found where it should be. See :any:`exceptions.BadExecutionLocation`.
+    """Initialize command line interface.
     """
-    if not os.path.exists(".hosts-manager.flag"):
-        raise exceptions.BadExecutionLocation()
-
-    arguments = docopt(docopt_doc, version="%s %s %s" % (__appname__, __version__, __status__))
-    cli = CommandLineTool(arguments)
-    cli.run()
+    cli_utils.run_cli(flag_file=".hosts-manager.flag",
+                      docopt_doc=docopt_doc,
+                      app_name=__appname__,
+                      app_version=__version__,
+                      app_status=__status__,
+                      cli_class=CommandLineInterface)
 
 
 if __name__ == "__main__":
