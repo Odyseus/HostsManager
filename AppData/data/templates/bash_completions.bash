@@ -66,7 +66,8 @@ __hosts_manager_cli_{current_date}(){
 
     # Completion of commands and "first level options.
     if [[ $COMP_CWORD == 1 ]]; then
-        COMPREPLY=( $(compgen -W "run server generate -d --flush-dns-cache -h --help --manual --version" -- "${cur}") )
+        COMPREPLY=( $(compgen -W "run server generate -f --flush-dns-cache -d --dry-run \
+-h --help --manual --version" -- "${cur}") )
         return 0
     fi
 
@@ -75,8 +76,8 @@ __hosts_manager_cli_{current_date}(){
 
     case $cmd in
     "run")
-        COMPREPLY=( $(compgen -W "update build install -d --flush-dns-cache -p --profile= \
--o --override= -f --force-update" -- "${cur}") )
+        COMPREPLY=( $(compgen -W "update build install -f --flush-dns-cache -p --profile= \
+-o --override= -u --force-update -d --dry-run" -- "${cur}") )
         _decide_nospace_{current_date} ${COMPREPLY[0]}
         ;;
     "server")
