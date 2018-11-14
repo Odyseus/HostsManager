@@ -35,12 +35,14 @@ docopt_doc = """{appname} {version} ({status})
 {appdescription}
 
 Usage:
-    app.py (-h | --help | --manual | --version | -d | --flush-dns-cache)
+    app.py (-h | --help | --manual | --version)
+    app.py (-f | --flush-dns-cache) [-d | --dry-run]
     app.py run (update | build | install) [update] [build] [install]
                (-p <name> | --profile=<name>)
                [-o <key=value>... | --override=<key=value>...]
-               [-d | --flush-dns-cache]
-               [-f | --force-update]
+               [-f | --flush-dns-cache]
+               [-u | --force-update]
+               [-d | --dry-run]
     app.py server (start | stop | restart)
                   [--host=<host>]
                   [--port=<port>]
@@ -65,28 +67,24 @@ Options:
     One or more sets of <key=value> that will override the configuration
     options set in the conf.py file.
 
--d, --flush-dns-cache
+-f, --flush-dns-cache
     Attempt to flush DNS cache for the new hosts file to take effect.
 
--f, --force-update
+-u, --force-update
     Force the update of all sources, ignoring the frequency in which they
     should be updated.
+
+-d, --dry-run
+    Do not perform file system changes. Only display messages informing of the
+    actions that will be performed or commands that will be executed.
+    WARNING! Some file system changes will be performed (e.g. temporary files
+    creation).
 
 --host=<host>
     Host name. [Default: 0.0.0.0]
 
 --port=<port>
     Port name. [Default: 80]
-
-Sub-commands for the `server` command:
-    start                Start server.
-    stop                 Stop server.
-    restart              Restart server.
-
-Sub-commands for the `generate` command:
-    new_profile          Generate a new profile.
-    system_executable    Create an executable for this application on the system
-                         PATH to be able to run it from anywhere.
 
 """.format(appname=__appname__,
            appdescription=__appdescription__,
@@ -150,8 +148,8 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
             # Not perfect, but good enough for this particular usage case.
             args_overrides = list(set(self.a["--override"]))
 
-            raw_overrides = app_utils.ValidatedOverrides(args_overrides)
-            override_errors = raw_overrides.get_errors()
+            overrides_validator = app_utils.OverridesValidator(args_overrides)
+            override_errors = overrides_validator.get_errors()
 
             if override_errors:
                 self.logger.warning(
@@ -164,7 +162,8 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
                 sys.exit(0)
 
             self.hosts_manager = app_utils.HostsManager(profile=self.a["--profile"],
-                                                        options_overrides=raw_overrides.get_valid_overrides(),
+                                                        dry_run=self.a["--dry-run"],
+                                                        options_overrides=overrides_validator.get_valid_overrides(),
                                                         logger=self.logger)
             self.logger.info("Command: run")
             self.logger.info("Arguments:")
@@ -226,7 +225,8 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
     def flush_dns_cache(self):
         """See :any:`app_utils.flush_dns_cache`
         """
-        app_utils.flush_dns_cache(self.logger)
+        app_utils.flush_dns_cache(dry_run=self.a["--dry-run"],
+                                  logger=self.logger)
 
     def system_executable_generation(self):
         """See :any:`cli_utils.CommandLineInterfaceSuper._system_executable_generation`.
