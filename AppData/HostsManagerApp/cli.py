@@ -60,8 +60,7 @@ Options:
     Show application version.
 
 -p <name>, --profile=<name>
-    The profile name to work with. This is actually the name of a folder inside
-    the profiles folder.
+    The profile name to work with.
 
 -o <key=value>, --override=<key=value>
     One or more sets of <key=value> that will override the configuration
@@ -84,7 +83,7 @@ Options:
     Host name. [Default: 0.0.0.0]
 
 --port=<port>
-    Port name. [Default: 80]
+    Port number. [Default: 80]
 
 """.format(appname=__appname__,
            appdescription=__appdescription__,
