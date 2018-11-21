@@ -162,7 +162,7 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
 
             self.hosts_manager = app_utils.HostsManager(profile=self.a["--profile"],
                                                         dry_run=self.a["--dry-run"],
-                                                        options_overrides=overrides_validator.get_valid_overrides(),
+                                                        settings_overrides=overrides_validator.get_valid_overrides(),
                                                         logger=self.logger)
             self.logger.info("Command: run")
             self.logger.info("Arguments:")

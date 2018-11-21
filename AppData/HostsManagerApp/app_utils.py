@@ -76,9 +76,9 @@ ff02::2 ip6-allrouters
 
 
 class OverridesValidator(object):
-    """Validate a list of options passed as arguments.
+    """Validate a list of settings passed as arguments.
     """
-    _valid_options = {
+    _valid_settings = {
         "target_ip",
         "keep_domain_comments",
         "skip_static_hosts",
@@ -91,7 +91,7 @@ class OverridesValidator(object):
         Parameters
         ----------
         raw_overrides : list
-            The raw list of options as passed to the CLI.
+            The raw list of settings as passed to the CLI.
         """
         self._raw_overrides = raw_overrides
         self._valid_overrides = {}
@@ -105,7 +105,7 @@ class OverridesValidator(object):
         Returns
         -------
         dict
-            The final list of options validated.
+            The final list of settings validated.
         """
         return self._valid_overrides
 
@@ -132,7 +132,7 @@ class OverridesValidator(object):
 
             key, value = override
 
-            if key not in self._valid_options:
+            if key not in self._valid_settings:
                 self._errors.append("Wrong key name: '%s'" % key)
                 continue
 
@@ -196,7 +196,7 @@ class HostsManager(object):
         See <class :any:`LogSystem`>.
     """
 
-    def __init__(self, profile="", dry_run=False, options_overrides={}, logger=None):
+    def __init__(self, profile="", dry_run=False, settings_overrides={}, logger=None):
         """
         Parameters
         ----------
@@ -204,8 +204,8 @@ class HostsManager(object):
             The profile name.
         dry_run : bool, optional
             Description
-        options_overrides : dict, optional
-            A list of options to override the default ones or the defined in the profile's
+        settings_overrides : dict, optional
+            A list of settings to override the default ones or the defined in the profile's
             configuration file.
         logger : object
             See <class :any:`LogSystem`>.
@@ -237,8 +237,8 @@ class HostsManager(object):
 
         self._validate_sources()
 
-        profile_options = config_file.get("options", {})
-        profile_options.update(options_overrides)
+        profile_settings = config_file.get("settings", {})
+        profile_settings.update(settings_overrides)
 
         self._last_update_data = {}
         # Changing self._exclusions from a list to a set improved items iterations
@@ -248,13 +248,13 @@ class HostsManager(object):
         self._number_of_rules = 0
         self._number_of_ignores = 0
 
-        # Customizable options.
-        self._target_ip = profile_options.get("target_ip", "0.0.0.0")
-        self._keep_domain_comments = profile_options.get("keep_domain_comments", False)
-        self._skip_static_hosts = profile_options.get("skip_static_hosts", False)
-        self._backup_old_generated_hosts = profile_options.get("backup_old_generated_hosts", True)
-        self._backup_system_hosts = profile_options.get("backup_system_hosts", True)
-        self._max_backups_to_keep = profile_options.get("max_backups_to_keep", 10)
+        # Customizable settings.
+        self._target_ip = profile_settings.get("target_ip", "0.0.0.0")
+        self._keep_domain_comments = profile_settings.get("keep_domain_comments", False)
+        self._skip_static_hosts = profile_settings.get("skip_static_hosts", False)
+        self._backup_old_generated_hosts = profile_settings.get("backup_old_generated_hosts", True)
+        self._backup_system_hosts = profile_settings.get("backup_system_hosts", True)
+        self._max_backups_to_keep = profile_settings.get("max_backups_to_keep", 10)
 
         self._validate_option_keys()
 
