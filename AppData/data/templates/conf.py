@@ -5,9 +5,9 @@
 Attributes
 ----------
 settings : dict, optional
-    See documentation/manual.
+    See documentation/manual for details.
 sources : list, mandatory
-    See documentation/manual.
+    See documentation/manual for details.
 """
 
 settings = {
