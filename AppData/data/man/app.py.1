@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "APP.PY" "1" "Nov 15, 2018" "" "Hosts Manager"
+.TH "APP.PY" "1" "Nov 22, 2018" "" "Hosts Manager"
 .SH NAME
 app.py \- A CLI utility to manage hosts files on GNU/Linux.
 .
@@ -74,6 +74,29 @@ Python 3.5+.
 .UNINDENT
 .UNINDENT
 .SH DETAILED USAGE
+.INDENT 0.0
+.INDENT 3.5
+.IP "Highlights"
+.INDENT 0.0
+.IP \(bu 2
+This application works with \fIprofiles\fP stored in \fBUserData/profiles\fP\&.
+.IP \(bu 2
+A profile is just a folder that contains a configuration file (\fBUserData/profiles/<profle_name>/conf.py\fP) and where all downloaded sources are stored and processed to generate a hosts file.
+.IP \(bu 2
+Each profile can have files named \fBwhitelist\fP and \fBblacklist\fP which contain a host name per line without inline comments.
+.IP \(bu 2
+Files named \fBglobal_blacklist\fP and \fBglobal_whitelist\fP inside \fBUserData\fP will be used by all profiles.
+.IP \(bu 2
+A \fBwhitelist\fP file contains a list of host names that \fBwill NEVER be added\fP to the final hosts file.
+.IP \(bu 2
+A \fBblacklist\fP file contains a list of host names that \fBwill ALWAYS be added\fP to the final hosts file.
+.IP \(bu 2
+The \fBconf.py\fP file should contain at least a property named \fBsources\fP (mandatory \- a list of dictionaries) and another property named \fBsettings\fP (optional \- a dictionary).
+.IP \(bu 2
+This application can process text files formatted as a hosts file (\fB0.0.0.0 hostname.com\fP one rule per line), text files formatted as a list of host names (\fBhostname.com\fP one domain per line) and archives (7Zip files, Zip files and compressed and non\-compressed Tar files) containing any of the aforementioned text files.
+.UNINDENT
+.UNINDENT
+.UNINDENT
 .SS CLI options
 .INDENT 0.0
 .IP \(bu 2
@@ -82,8 +105,86 @@ Python 3.5+.
 \fB\-\-manual\fP: Display this application manual.
 .IP \(bu 2
 \fB\-\-version\fP: Show this application version.
+.IP \(bu 2
+\fB\-f\fP or \fB\-\-flush\-dns\-cache\fP: Attempt to flush DNS cache for the new hosts file to take effect.
+.IP \(bu 2
+\fB\-d\fP or \fB\-\-dry\-run\fP: Do not perform file system changes. Only display messages informing of the actions that will be performed or commands that will be executed.
+.INDENT 2.0
+.INDENT 3.5
+.sp
+\fBWARNING:\fP
+.INDENT 0.0
+.INDENT 3.5
+Some file system changes will be performed (e.g. temporary files creation).
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
 .UNINDENT
 .SS Commands
+.SS app.py run
+.sp
+The main command to update, build and install a hosts file.
+.SS Sub\-commands
+.INDENT 0.0
+.IP \(bu 2
+\fBupdate\fP: Update all sources defined inside the \fBconf.py\fP file.
+.IP \(bu 2
+\fBbuild\fP: Build a hosts file based on the downloaded sources.
+.IP \(bu 2
+\fBinstall\fP: Install a generated hosts file into the system.
+.UNINDENT
+.SS Options
+.INDENT 0.0
+.IP \(bu 2
+\fB\-p <name>\fP or \fB\-\-profile=<name>\fP: The profile name to work with. This is actually the name of a folder inside the \fBUserData/profiles\fP folder.
+.IP \(bu 2
+\fB\-o <key=value>\fP or \fB\-\-override=<key=value>\fP: One or more sets of \fB<key=value>\fP that will override the configuration options set inside a profile\(aqs \fBconf.py\fP file.
+.IP \(bu 2
+\fB\-u\fP or \fB\-\-force\-update\fP: Force the update of all sources, ignoring the frequency in which they should be updated.
+.IP \(bu 2
+\fB\-f\fP or \fB\-\-flush\-dns\-cache\fP: Attempt to flush DNS cache for the new hosts file to take effect.
+.IP \(bu 2
+\fB\-d\fP or \fB\-\-dry\-run\fP: Do not perform file system changes. Only display messages informing of the actions that will be performed or commands that will be executed.
+.UNINDENT
+.SS app.py server
+.sp
+The HTTP server started will host the folder at \fBUserData/block_page\fP\&. This web page will be displayed when an attempt to contact a blocked host name is performed.
+.sp
+\fBWARNING:\fP
+.INDENT 0.0
+.INDENT 3.5
+Since the server needs to be started in the port \fB80\fP, elevated privileges are required. To bypass the password prompts for starting/stopping the server, the \fBsudoers\fP file can be edited.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+user_name ALL = (root) NOPASSWD: /home/user_name/.local/bin/hosts\-manager\-cli server start
+user_name ALL = (root) NOPASSWD: /home/user_name/.local/bin/hosts\-manager\-cli server stop
+user_name ALL = (root) NOPASSWD: /home/user_name/.local/bin/hosts\-manager\-cli server restart
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Sub\-commands
+.INDENT 0.0
+.IP \(bu 2
+\fBstart\fP: Start HTTP server.
+.IP \(bu 2
+\fBstop\fP: Stop HTTP server.
+.IP \(bu 2
+\fBrestart\fP: Restart HTTP server.
+.UNINDENT
+.SS Options
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-host=<host>\fP Host name.
+.IP \(bu 2
+\fB\-\-port=<port>\fP Port number.
+.UNINDENT
 .SS app.py generate
 .SS Sub\-commands
 .INDENT 0.0
@@ -99,6 +200,123 @@ It will also ask for bash completions creation.
 .UNINDENT
 .UNINDENT
 .UNINDENT
+.UNINDENT
+.SH FILE TEMPLATES
+.SS conf.py template
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#!/usr/bin/python3
+# \-*\- coding: utf\-8 \-*\-
+"""Practical example configuration file.
+
+Attributes
+\-\-\-\-\-\-\-\-\-\-
+settings : dict, optional
+    See documentation/manual for details.
+sources : list, mandatory
+    See documentation/manual for details.
+"""
+
+settings = {
+    "target_ip": "0.0.0.0",
+    "keep_domain_comments": False,
+    "skip_static_hosts": False,
+    "backup_old_generated_hosts": True,
+    "backup_system_hosts": True,
+    "max_backups_to_keep": 10,
+}
+
+sources = [
+    {
+        "name": "MVPS hosts file",
+        "url": "http://winhelp2002.mvps.org/hosts.txt",
+        "frequency": "m",
+        "description": "The purpose of this site is to provide the user with a high quality custom HOSTS file.",
+        "homeurl": "http://winhelp2002.mvps.org/",
+        "issues": "mailto:winhelp2002@gmail.com",
+        "license": "CC BY\-NC\-SA 4.0"
+    }, {
+        "name": "Malwarebytes hpHosts",
+        "url": "http://hosts\-file.net/download/hosts.zip",
+        "unzip_prog": "unzip",
+        "unzip_target": "hosts.txt",
+        "frequency": "s",
+        "description": "hpHosts is a community managed and maintained hosts file that allows an additional layer of protection against access to ad, tracking and malicious websites.",
+        "homeurl": "https://hosts\-file.net",
+        "license": "Freeware"
+    }
+]
+
+if __name__ == "__main__":
+    pass
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+All data keys are of type string and are optional unless specified otherwise.
+.UNINDENT
+.UNINDENT
+.SS Data keys for the \fBsettings\fP property
+.sp
+In case that the \fBsettings\fP property is not defined or any of its keys are not specified, the default values will be used. All these settings can be overridden with the \fB\-\-override=<key=value>\fP CLI option.
+.INDENT 0.0
+.IP \(bu 2
+\fBtarget_ip\fP (\fBDefault\fP: "0.0.0.0"): The loop back IP address that will be used in the newly generated hosts file.
+.IP \(bu 2
+\fBkeep_domain_comments\fP (\fBBoolean\fP) (\fBDefault\fP: False): Keep or not the in\-line comments next to the hosts rules.
+.IP \(bu 2
+\fBskip_static_hosts\fP (\fBBoolean\fP) (\fBDefault\fP: False): Skip or not the static host names at the beginning of the file (localhost, localhost.localdomain, local, etc.).
+.IP \(bu 2
+\fBbackup_old_generated_hosts\fP (\fBBoolean\fP) (\fBDefault\fP: True): Backup or not the previously generated hosts file before generating the new one.
+.IP \(bu 2
+\fBbackup_system_hosts\fP (\fBBoolean\fP) (\fBDefault\fP: True): Backup or not the currently in use hosts file before replacing it.
+.IP \(bu 2
+\fBmax_backups_to_keep\fP (\fBInteger\fP) (\fBDefault\fP: 10): How many backed up hosts files (system\(aqs and generated) to keep. Older backup files will be automatically deleted.
+.UNINDENT
+.SS Data keys for the \fBsources\fP property
+.INDENT 0.0
+.IP \(bu 2
+\fBname\fP (\fBMandatory\fP): A \fBunique\fP name that identifies the source. Since this \fIname\fP is used to generate the name of the downloaded file, and the downloaded files are all stored inside the same folder, this \fIname\fP \fBmust be unique\fP\&.
+.IP \(bu 2
+\fBurl\fP (\fBMandatory\fP): The URL for the direct download of the source file.
+.IP \(bu 2
+\fBfrequency\fP (\fBDefault\fP: m): Frequency in which the source files should be downloaded.
+.INDENT 2.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fBd\fP (daily): A source is downloaded every time that it is managed.
+.IP \(bu 2
+\fBw\fP (weekly): A source is downloaded only if at least 6 days have passed since the last download.
+.IP \(bu 2
+\fBm\fP (monthly): A source is downloaded only if at least 28 days have passed since the last download.
+.IP \(bu 2
+\fBs\fP (semestrial): A source is downloaded only if at least 87 days have passed since the last download.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fBunzip_prog\fP (\fBMandatory for archives\fP): The name of the command used to decompress the downloaded file. Needless to say, the command should be available on the system. Possible values: \fBunzip\fP, \fB7z\fP or \fBtar\fP\&.
+.IP \(bu 2
+\fBunzip_target\fP (\fBMandatory for archives\fP): The name of the file to extract inside the compressed file.
+.IP \(bu 2
+\fBuntar_arg\fP (\fBDefault\fP: empty (no decompression argument is passed to \fBtar\fP)): The decompress argument used by the \fBtar\fP program. Possible values are \fB\-\-xz\fP, \fB\-J\fP, \fB\-\-gzip\fP, \fB\-z\fP, \fB\-\-bzip2\fP or \fB\-j\fP\&.
+.IP \(bu 2
+\fBdescription\fP: A brief description of the source and its content.
+.IP \(bu 2
+\fBhomeurl\fP: A home URL for the source.
+.IP \(bu 2
+\fBissues\fP: An URL were to report issues with the source.
+.IP \(bu 2
+\fBlicense\fP: The license for the downloaded file.
 .UNINDENT
 .SH AUTHOR
 Odyseus
