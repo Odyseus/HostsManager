@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "APP.PY" "1" "Nov 24, 2018" "" "Hosts Manager"
+.TH "APP.PY" "1" "Nov 26, 2018" "" "Hosts Manager"
 .SH NAME
 app.py \- A CLI utility to manage hosts files on GNU/Linux.
 .
@@ -62,17 +62,7 @@ app.py generate (system_executable | new_profile)
 Application inspired and heavily based on the \fBupdateHostsFile.py\fP Python script found on \fI\%StevenBlack\(aqs repository\fP <\fBhttps://github.com/StevenBlack/hosts\fP>\&.
 .SH REQUIREMENTS
 .sp
-\fBATTENTION:\fP
-.INDENT 0.0
-.INDENT 3.5
-.INDENT 0.0
-.IP \(bu 2
-Python 3.5+.
-.IP \(bu 2
-\fBpython\-slugify\fP module.
-.UNINDENT
-.UNINDENT
-.UNINDENT
+No mayor requirements are needed to run this application other than Python 3.5+.
 .SH DETAILED USAGE
 .INDENT 0.0
 .INDENT 3.5
@@ -115,7 +105,7 @@ This application can process text files formatted as a hosts file (\fB0.0.0.0 ho
 \fBWARNING:\fP
 .INDENT 0.0
 .INDENT 3.5
-Some file system changes will be performed (e.g. temporary files creation).
+Some file system changes will be performed (e.g., temporary files creation).
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -317,6 +307,13 @@ In case that the \fBsettings\fP property is not defined or any of its keys are n
 \fBissues\fP: An URL were to report issues with the source.
 .IP \(bu 2
 \fBlicense\fP: The license for the downloaded file.
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+The \fBdescription\fP, \fBhomeurl\fP, \fBissues\fP and \fBlicense\fP keys are merely informative. They aren\(aqt used by this application in any way.
+.UNINDENT
 .UNINDENT
 .SH AUTHOR
 Odyseus
