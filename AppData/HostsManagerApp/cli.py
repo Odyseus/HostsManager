@@ -76,7 +76,7 @@ Options:
 -d, --dry-run
     Do not perform file system changes. Only display messages informing of the
     actions that will be performed or commands that will be executed.
-    WARNING! Some file system changes will be performed (e.g. temporary files
+    WARNING! Some file system changes will be performed (e.g., temporary files
     creation).
 
 --host=<host>
