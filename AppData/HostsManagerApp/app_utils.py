@@ -27,14 +27,10 @@ from tempfile import NamedTemporaryFile
 from .python_utils import cmd_utils
 from .python_utils import exceptions
 from .python_utils import file_utils
+from .python_utils import string_utils
 from .python_utils import tqdm_wget
 from .python_utils.ansi_colors import Ansi
 from .python_utils.tqdm import tqdm
-
-try:
-    from slugify import slugify
-except (SystemError, ImportError):
-    raise exceptions.MissingDependencyModule("Module not installed: <python-slugify>")
 
 
 root_folder = os.path.realpath(os.path.abspath(os.path.join(
@@ -332,7 +328,7 @@ class HostsManager(object):
 
         for source in self._sources:
             # Generate and add "slugified_name".
-            source["slugified_name"] = "hosts-%s" % slugify(source["name"])
+            source["slugified_name"] = "hosts-%s" % string_utils.slugify(source["name"])
 
             # Generate and add the path for the downloaded file.
             if source.get("unzip_prog", False):
@@ -634,8 +630,12 @@ class HostsManager(object):
                             self.logger.log_dry_run("Destination: %s" % dst_path)
                         else:
                             copy2(src_path, dst_path)
-                    except CalledProcessError as err:
-                        self.logger.error(err)
+                    except Exception as err1:
+                        self.logger.error(err1)
+                        continue
+                    except CalledProcessError as err2:
+                        self.logger.error(err2)
+                        continue
         except (KeyboardInterrupt, SystemExit):
             raise exceptions.KeyboardInterruption()
 
