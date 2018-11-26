@@ -617,9 +617,9 @@ class HostsManager(object):
                             self.logger.info("Running command:\n%s" % " ".join(cmd))
 
                             cmd_utils.run_cmd(cmd,
-                                              stdout=None,
                                               stderr=STDOUT,
-                                              check=True)
+                                              check=True,
+                                              cwd=src_dir_path)
 
                         if os.path.exists(dst_path):
                             if self._dry_run:
