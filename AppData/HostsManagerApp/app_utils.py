@@ -199,7 +199,7 @@ class HostsManager(object):
         profile : str, optional
             The profile name.
         dry_run : bool, optional
-            Description
+            Log an action without actually performing it.
         settings_overrides : dict, optional
             A list of settings to override the default ones or the defined in the profile's
             configuration file.
@@ -962,7 +962,7 @@ def flush_dns_cache(dry_run=False, logger=None):
     Parameters
     ----------
     dry_run : bool, optional
-        Description
+        Log an action without actually performing it.
     logger : object
         See <class :any:`LogSystem`>.
     """

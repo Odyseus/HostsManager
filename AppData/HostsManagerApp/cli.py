@@ -280,7 +280,6 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
         self.http_server(action="restart")
 
     def display_manual_page(self):
-        print("WTF")
         """See :any:`cli_utils.CommandLineInterfaceSuper._display_manual_page`.
         """
         self._display_manual_page(os.path.join(root_folder, "AppData", "data", "man", "app.py.1"))
