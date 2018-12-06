@@ -27,6 +27,7 @@ from tempfile import NamedTemporaryFile
 from .python_utils import cmd_utils
 from .python_utils import exceptions
 from .python_utils import file_utils
+from .python_utils import shell_utils
 from .python_utils import string_utils
 from .python_utils import tqdm_wget
 from .python_utils.ansi_colors import Ansi
@@ -269,6 +270,9 @@ class HostsManager(object):
         self._ensure_paths()
         self._expand_local_sources_data()
 
+    def _log_shell_separator(self, char="-"):
+        self.logger.info(shell_utils.get_cli_separator(char), date=False)
+
     def _validate_sources(self):
         """Validate sources.
 
@@ -420,8 +424,13 @@ class HostsManager(object):
         force_update : bool
             Ignore source update frequency and update its file/s anyway.
         """
+        self._log_shell_separator("#")
+        self.logger.info("Updating sources...")
+
         try:
             for source in self._sources:
+                self._log_shell_separator()
+
                 if force_update or self._should_update_source(source):
                     self.logger.info("Updating source <%s>" % source["name"])
 
@@ -446,7 +455,6 @@ class HostsManager(object):
                     data_file.write(json.dumps(self._last_update_data, indent=4, sort_keys=True))
 
         if self._compressed_sources:
-            self.logger.info("Handling compressed sources.")
             self._handle_compressed_sources()
 
     def _should_update_source(self, source):
@@ -571,8 +579,12 @@ class HostsManager(object):
         exceptions.KeyboardInterruption
             See <class :any:`exceptions.KeyboardInterruption`>.
         """
+        self._log_shell_separator("#")
+        self.logger.info("Handling compressed sources...")
+
         try:
             for source in self._compressed_sources:
+                self._log_shell_separator()
                 self.logger.info("Decompressing source <%s>." % source["name"])
 
                 aborted_msg = "Extract operation for <%s> aborted." % source["name"]
