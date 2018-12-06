@@ -332,9 +332,14 @@ class HostsManager(object):
 
             # Generate and add the path for the downloaded file.
             if source.get("unzip_prog", False):
-                source["downloaded_filename"] = os.path.join(self._sources_storage_compressed,
-                                                             source["slugified_name"],
-                                                             source["slugified_name"])
+                source["downloaded_filename"] = \
+                    os.path.join(self._sources_storage_compressed,
+                                 source["slugified_name"],
+                                 source["slugified_name"] + ".gz"
+                                 # CAN YOU BELIEVE THIS NONSENSE!?!?!?!
+                                 # Add the .gz file extension because gzip is absolutely retarded!!!
+                                 if source.get("unzip_prog") == "gzip" else
+                                 source["slugified_name"])
             else:
                 source["downloaded_filename"] = os.path.join(
                     self._sources_storage_raw, source["slugified_name"])
@@ -573,8 +578,11 @@ class HostsManager(object):
                 aborted_msg = "Extract operation for <%s> aborted." % source["name"]
                 src_dir_path = os.path.dirname(source["downloaded_filename"])
                 src_path = os.path.join(src_dir_path, source["unzip_target"])
+                dst_file_name = os.path.basename(source["downloaded_filename"])
                 dst_path = os.path.join(self._sources_storage_raw,
-                                        os.path.basename(source["downloaded_filename"]))
+                                        dst_file_name[:-3] if
+                                        source["unzip_prog"] == "gzip" else
+                                        dst_file_name)
                 cmd = []
 
                 if not cmd_utils.which(source["unzip_prog"]):
@@ -586,6 +594,9 @@ class HostsManager(object):
                     cmd += ["7z", "e", "-y", source["downloaded_filename"]]
                 elif source["unzip_prog"] == "unzip":
                     cmd += ["unzip", "-o", source["downloaded_filename"]]
+                elif source["unzip_prog"] == "gzip":
+                    # If ever a software deserved the most torturous of deaths is this garbage!!!!
+                    cmd += ["gzip", "-d", source["downloaded_filename"]]
                 elif source["unzip_prog"] == "tar":
                     untar_arg = source.get("untar_arg")
                     cmd = ["tar", "--extract"]
