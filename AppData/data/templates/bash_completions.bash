@@ -28,6 +28,7 @@ __hosts_manager_cli_{current_date}(){
     override_keys=("target_ip=0.0.0.0"
 "keep_domain_comments=false"
 "skip_static_hosts=false"
+"custom_static_hosts="
 "backup_old_generated_hosts=true"
 "backup_system_hosts=true"
 "max_backups_to_keep=10")
