@@ -71,7 +71,7 @@ Options:
 
 -u, --force-update
     Force the update of all sources, ignoring the frequency in which they
-    should be updated.
+    should be updated. All previously downloaded sources will be removed.
 
 -d, --dry-run
     Do not perform file system changes. Only display messages informing of the
