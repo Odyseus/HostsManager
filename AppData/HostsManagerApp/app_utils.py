@@ -14,11 +14,13 @@ import os
 import re
 import time
 
+from collections import Callable
 from datetime import datetime
 from datetime import timedelta
 from ipaddress import ip_address
 from runpy import run_path
 from shutil import copy2
+from shutil import rmtree
 from socket import gethostname
 from subprocess import CalledProcessError
 from subprocess import STDOUT
@@ -27,11 +29,16 @@ from tempfile import NamedTemporaryFile
 from .python_utils import cmd_utils
 from .python_utils import exceptions
 from .python_utils import file_utils
+from .python_utils import json_schema_utils
 from .python_utils import shell_utils
 from .python_utils import string_utils
 from .python_utils import tqdm_wget
 from .python_utils.ansi_colors import Ansi
 from .python_utils.tqdm import tqdm
+from .schemas import settings_schema
+from .schemas import sources_schema
+
+from .pre_processors import pre_processors as builtin_pre_processors
 
 
 root_folder = os.path.realpath(os.path.abspath(os.path.join(
@@ -57,17 +64,22 @@ _header = """# Date: {date}
 """
 
 _header_static_hosts = """
+0.0.0.0 0.0.0.0
+127.0.0.1 local
 127.0.0.1 localhost
 127.0.0.1 localhost.localdomain
-127.0.0.1 local
+127.0.0.53 {host_name}
+127.0.1.1 {host_name}
 255.255.255.255 broadcasthost
-::1 localhost ip6-localhost ip6-loopback
+::1 ip6-localhost
+::1 ip6-loopback
+::1 localhost
 fe80::1%lo0 localhost
+ff00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
 ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
-0.0.0.0 0.0.0.0
-127.0.1.1 {host_name}
-127.0.0.53 {host_name}
+ff02::3 ip6-allhosts
 
 """
 
@@ -79,6 +91,7 @@ class OverridesValidator(object):
         "target_ip",
         "keep_domain_comments",
         "skip_static_hosts",
+        "custom_static_hosts",
         "backup_old_generated_hosts",
         "backup_system_hosts"
     }
@@ -219,7 +232,8 @@ class HostsManager(object):
 
         self.logger = logger
         self._dry_run = dry_run
-        self._merge_file = None
+        self._merge_blacklist_file = None
+        self._merge_whitelist_file = None
         self._final_file = None
         self._current_date = time.strftime("%B %d %Y", time.gmtime())  # Format = January 1 2018
         self._profile_path = os.path.join(_profiles_path, profile)
@@ -234,8 +248,21 @@ class HostsManager(object):
 
         self._validate_sources()
 
+        # Customizable settings.
+        self._settings = {
+            "target_ip": "0.0.0.0",
+            "keep_domain_comments": False,
+            "skip_static_hosts": False,
+            "custom_static_hosts": "",
+            "backup_old_generated_hosts": True,
+            "backup_system_hosts": True,
+            "max_backups_to_keep": 10,
+        }
+
         profile_settings = config_file.get("settings", {})
         profile_settings.update(settings_overrides)
+
+        self._settings.update(profile_settings)
 
         self._last_update_data = {}
         # Changing self._exclusions from a list to a set improved items iterations
@@ -245,12 +272,6 @@ class HostsManager(object):
         self._number_of_rules = 0
         self._number_of_ignores = 0
 
-        # Customizable settings.
-        self._target_ip = profile_settings.get("target_ip", "0.0.0.0")
-        self._keep_domain_comments = profile_settings.get("keep_domain_comments", False)
-        self._skip_static_hosts = profile_settings.get("skip_static_hosts", False)
-        self._backup_old_generated_hosts = profile_settings.get("backup_old_generated_hosts", True)
-        self._backup_system_hosts = profile_settings.get("backup_system_hosts", True)
         self._max_backups_to_keep = profile_settings.get("max_backups_to_keep", 10)
 
         self._validate_option_keys()
@@ -271,6 +292,13 @@ class HostsManager(object):
         self._expand_local_sources_data()
 
     def _log_shell_separator(self, char="-"):
+        """Summary
+
+        Parameters
+        ----------
+        char : str, optional
+            Character used to generate the "CLI separator".
+        """
         self.logger.info(shell_utils.get_cli_separator(char), date=False)
 
     def _validate_sources(self):
@@ -287,28 +315,24 @@ class HostsManager(object):
             raise exceptions.MissingSourcesOnConfigFile(
                 "The 'sources' variable is not declared or it's empty.")
 
-        mandatory_keys = ["name", "url"]
+        json_schema_utils.validate(
+            self._sources, sources_schema,
+            error_message_extra_info="\n".join([
+                "File: %s" % os.path.join(self._profile_path, "conf.py"),
+                "Data key: sources"
+            ]),
+            logger=self.logger)
+
         names = set()
         errors = []
 
+        # TODO: Find a way to validate the following using JSON schema.
+        # This doesn't seem possible with current JSON schema standards.
+        # Checked up to daft 4 of the JSON schema standard.
+        # Revisit when the stable version of the jsonschema module implements
+        # the draft 7 of the standard.
         for source in self._sources:
             source_name = source.get("name", False)
-            report_source = source_name if source_name else source
-            source_keys = set(source.keys())
-
-            # Do not allow sources without mandatory keys.
-            for key in mandatory_keys:
-                if key not in source_keys:
-                    errors.append("Missing mandatory <%s> key!!! Source: <%s>" %
-                                  (key, report_source))
-
-            if "unzip_prog" in source_keys and "unzip_target" not in source_keys:
-                errors.append("Missing mandatory <%s> key!!! Source: <%s>" %
-                              ("unzip_target", report_source))
-
-            if "unzip_target" in source_keys and "unzip_prog" not in source_keys:
-                errors.append("Missing mandatory <%s> key!!! Source: <%s>" %
-                              ("unzip_prog", report_source))
 
             if source_name:
                 # Do not allow more than one source with the same "name".
@@ -339,10 +363,6 @@ class HostsManager(object):
                 source["downloaded_filename"] = \
                     os.path.join(self._sources_storage_compressed,
                                  source["slugified_name"],
-                                 source["slugified_name"] + ".gz"
-                                 # CAN YOU BELIEVE THIS NONSENSE!?!?!?!
-                                 # Add the .gz file extension because gzip is absolutely retarded!!!
-                                 if source.get("unzip_prog") == "gzip" else
                                  source["slugified_name"])
             else:
                 source["downloaded_filename"] = os.path.join(
@@ -357,26 +377,24 @@ class HostsManager(object):
 
     def _validate_option_keys(self):
         """Validate keys.
-
-        Raises
-        ------
-        exceptions.WrongValueForOption
-            See <class :any:`exceptions.WrongValueForOption`>.
         """
-        if not is_valid_integer(self._max_backups_to_keep):
-            raise exceptions.WrongValueForOption(
-                "%s Option <max_backups_to_keep>." % _invalid_integer_msg)
-
-        if not is_valid_ip(self._target_ip):
-            raise exceptions.WrongValueForOption("%s Option <target_ip>." % _invalid_ip_msg)
+        json_schema_utils.validate(
+            self._settings, settings_schema,
+            error_message_extra_info="\n".join([
+                "File: %s" % os.path.join(self._profile_path, "conf.py"),
+                "Data key: settings"
+            ]),
+            logger=self.logger)
 
     def install_hosts_file(self):
         """Install the generated hosts file.
         """
-        print(Ansi.PURPLE("Moving the hosts file requires administrative privileges.\n"
-                          "You might need to enter your password."))
+        self._log_shell_separator("#")
 
-        if self._backup_system_hosts:
+        print(Ansi.LIGHT_MAGENTA("Moving the hosts file requires administrative privileges.\n"
+                                 "You might need to enter your password."))
+
+        if self._settings["backup_system_hosts"]:
             try:
                 self.logger.info("Backing up the system's hosts file...")
                 backup_file_path = os.path.join(self._backups_storage, "system-hosts-{}".format(
@@ -389,8 +407,8 @@ class HostsManager(object):
                                             % self._backups_storage)
                 else:
                     copy2("/etc/hosts", backup_file_path)
-                    file_utils.remove_surplus_files(
-                        self._backups_storage, "system-hosts-*", max_files_to_keep=10)
+                    file_utils.remove_surplus_files(self._backups_storage, "system-hosts-*",
+                                                    max_files_to_keep=self._settings["max_backups_to_keep"])
             except Exception as err:
                 self.logger.error(err)
 
@@ -399,8 +417,11 @@ class HostsManager(object):
     def build_hosts_file(self):
         """Build the hosts file from the local sources.
         """
-        self._create_initial_file()
+        self._log_shell_separator("#")
+
+        self._create_temporary_files()
         self._remove_old_hosts_file()
+        self._populate_exclusions_list()
         self._populate_final_file()
         self._write_opening_header()
         self.logger.info("Hosts file building finished.")
@@ -426,6 +447,15 @@ class HostsManager(object):
         """
         self._log_shell_separator("#")
         self.logger.info("Updating sources...")
+
+        if force_update:
+            if self._dry_run:
+                self.logger.log_dry_run("The following directory will be removed:\n%s" %
+                                        "\n".join([self._sources_storage_raw,
+                                                   self._sources_storage_compressed]))
+            else:
+                rmtree(self._sources_storage_raw)
+                rmtree(self._sources_storage_compressed)
 
         try:
             for source in self._sources:
@@ -540,11 +570,11 @@ class HostsManager(object):
         exceptions.KeyboardInterruption
             See <class :any:`exceptions.KeyboardInterruption`>.
         """
-        is_compressed_source = source.get("unzip_prog", False)
+        is_compressed_source = source.get("unzip_prog")
 
-        if is_compressed_source:
-            parent_dir = os.path.dirname(source["downloaded_filename"])
+        parent_dir = os.path.dirname(source["downloaded_filename"])
 
+        if not file_utils.is_real_dir(parent_dir):
             if self._dry_run:
                 self.logger.log_dry_run("Directory will be created at:\n%s" % parent_dir)
             else:
@@ -590,11 +620,8 @@ class HostsManager(object):
                 aborted_msg = "Extract operation for <%s> aborted." % source["name"]
                 src_dir_path = os.path.dirname(source["downloaded_filename"])
                 src_path = os.path.join(src_dir_path, source["unzip_target"])
-                dst_file_name = os.path.basename(source["downloaded_filename"])
                 dst_path = os.path.join(self._sources_storage_raw,
-                                        dst_file_name[:-3] if
-                                        source["unzip_prog"] == "gzip" else
-                                        dst_file_name)
+                                        os.path.basename(source["downloaded_filename"]))
                 cmd = []
 
                 if not cmd_utils.which(source["unzip_prog"]):
@@ -606,9 +633,6 @@ class HostsManager(object):
                     cmd += ["7z", "e", "-y", source["downloaded_filename"]]
                 elif source["unzip_prog"] == "unzip":
                     cmd += ["unzip", "-o", source["downloaded_filename"]]
-                elif source["unzip_prog"] == "gzip":
-                    # If ever a software deserved the most torturous of deaths is this garbage!!!!
-                    cmd += ["gzip", "-d", source["downloaded_filename"]]
                 elif source["unzip_prog"] == "tar":
                     untar_arg = source.get("untar_arg")
                     cmd = ["tar", "--extract"]
@@ -667,7 +691,8 @@ class HostsManager(object):
         """
         self.logger.info("Writing the opening header...")
         self._final_file.seek(0)  # Reset file pointer.
-        file_contents = self._final_file.read()  # Save content.
+        file_contents = self._final_file.readlines()  # Store content.
+        file_contents.sort()  # Sort content.
 
         self._final_file.seek(0)  # Write at the top.
 
@@ -676,11 +701,14 @@ class HostsManager(object):
             number_of_rules="{:,}".format(self._number_of_rules)
         )
 
-        if not self._skip_static_hosts:
+        if not self._settings["skip_static_hosts"]:
             header += _header_static_hosts.format(host_name=gethostname())
 
+        if self._settings["custom_static_hosts"]:
+            header += self._settings["custom_static_hosts"].format(host_name=gethostname())
+
         self._final_file.write(bytes(header, "UTF-8"))
-        self._final_file.write(file_contents)
+        self._final_file.writelines(file_contents)
 
         base_msg = "Newly generated hosts file at:\n%s"
 
@@ -713,15 +741,15 @@ class HostsManager(object):
             # Create if already removed, so remove won't raise an error.
             open(self._hosts_file_path, "a").close()
 
-            if self._backup_old_generated_hosts:
+            if self._settings["backup_old_generated_hosts"]:
                 backup_file_path = os.path.join(self._backups_storage, "generated-hosts-{}".format(
                     time.strftime("%Y-%m-%d-%H-%M-%S")))
 
                 # Make a backup copy, marking the date in which the list was updated
                 copy2(self._hosts_file_path, backup_file_path)
                 self.logger.info("Old generated hosts file backed up...")
-                file_utils.remove_surplus_files(
-                    self._backups_storage, "generated-hosts-*", max_files_to_keep=10)
+                file_utils.remove_surplus_files(self._backups_storage, "generated-hosts-*",
+                                                max_files_to_keep=self._settings["max_backups_to_keep"])
 
             os.remove(self._hosts_file_path)
             self.logger.info("Old generated hosts file removed...")
@@ -742,44 +770,115 @@ class HostsManager(object):
             os.makedirs(self._sources_storage_compressed, exist_ok=True)
             os.makedirs(self._backups_storage, exist_ok=True)
 
-    def _create_initial_file(self):
-        """Initialize the file in which we merge all host files for later pruning.
+    def _create_temporary_files(self):
+        """Create temporary files.
+
+        Initialize the files in which all source files will be merged for later pruning.
         """
-        self._merge_file = NamedTemporaryFile()
+        self._merge_blacklist_file = NamedTemporaryFile()
+        self._merge_whitelist_file = NamedTemporaryFile()
 
         self.logger.info("Creating initial temporary file...")
-        self.logger.info("Collecting data from local sources...")
-        sources_paths = file_utils.recursive_glob(self._sources_storage_raw, "hosts-*")
+        self.logger.info("Collecting data from raw sources...")
 
-        for s in tqdm(range(len(sources_paths))):
-            source_path = sources_paths[s]
-            source_path_rel = os.path.relpath(source_path, _profiles_path)
+        for s in tqdm(range(len(self._sources))):
+            source = self._sources[s]
+            source_path = os.path.join(self._sources_storage_raw, source["slugified_name"])
 
-            try:
-                with open(source_path, "r", encoding="UTF-8") as curFile:
-                    self._merge_file.write(bytes(curFile.read() + "\n", "UTF-8"))
-            except UnicodeDecodeError:
-                self.logger.warning("File <%s>" % source_path_rel)
-                self.logger.warning("Attempt to read file with UTF-8 encoding failed.")
+            if os.path.isfile(source_path):
+                source_data = None
 
+                # Deal only with UTF-8 and cp1252 encodings.
+                # If a source with any other encoding is found, FORGET OF ITS EXISTENCE!!!
                 try:
-                    self.logger.warning("Trying to read file with cp1252 encoding.")
+                    with open(source_path, "r", encoding="UTF-8") as curFile:
+                        source_data = curFile.read()
+                except UnicodeDecodeError:
+                    try:
+                        with open(source_path, "r", encoding="cp1252") as curFile:
+                            source_data = curFile.read()
+                    except UnicodeDecodeError as err:
+                        self.logger.warning("Attempt to open file with cp1252 encoding failed.")
+                        self.logger.warning("File ignored.")
+                        self.logger.error(err)
+                        continue
 
-                    with open(source_path, "r", encoding="cp1252") as curFile:
-                        self._merge_file.write(bytes(curFile.read() + "\n", "UTF-8"))
-                except UnicodeDecodeError as err:
-                    self.logger.warning("Attempt to open file with cp1252 encoding failed.")
-                    self.logger.warning("File ignored.")
-                    print(err)
-                    continue
+                if source_data:
+                    source_data = source_data.replace("\r", "")
+
+                    if source.get("pre_processors"):
+                        for pp in source.get("pre_processors"):
+                            try:
+                                if isinstance(pp, Callable):
+                                    pp_qual_name = pp.__qualname__
+                                    source_data = pp(source_data, self.logger)
+                                elif pp in builtin_pre_processors:
+                                    builtin_pre_pro = builtin_pre_processors.get(pp)
+                                    pp_qual_name = builtin_pre_pro.__qualname__
+                                    source_data = builtin_pre_pro(source_data, self.logger)
+                            except Exception as err:
+                                # Log the pre-processor function's qualified name.
+                                self.logger.error("Pre-processor error: %s" % pp_qual_name)
+                                self.logger.error(err)
+                                continue
+
+                    getattr(self,
+                            "_merge_whitelist_file"
+                            if source.get("is_whitelist") else
+                            "_merge_blacklist_file"
+                            ).write(bytes(source_data + "\n", "UTF-8"))
 
         self.logger.info("Collecting data from blacklist files...")
+
         for blacklist_file in [self._profile_blacklist_path, self._global_blacklist_path]:
             if os.path.isfile(blacklist_file):
                 self.logger.info("Adding data from <%s>" %
                                  os.path.relpath(blacklist_file, _user_data_path))
                 with open(blacklist_file, "r", encoding="UTF-8") as curFile:
-                    self._merge_file.write(bytes(curFile.read(), "UTF-8"))
+                    self._merge_blacklist_file.write(bytes(curFile.read(), "UTF-8"))
+
+    def _populate_exclusions_list(self):
+        """Populate exclusions list.
+
+        Raises
+        ------
+        exceptions.KeyboardInterruption
+            See <class :any:`exceptions.KeyboardInterruption`>.
+        """
+        self.logger.info("Populating the exclusions list...")
+
+        self.logger.info("Processing local whitelist files...")
+
+        for whitelist_file in [self._profile_whitelist_path, self._global_whitelist_path]:
+            if os.path.isfile(whitelist_file):
+                self.logger.info("Adding data from <%s>..." %
+                                 os.path.relpath(whitelist_file, _user_data_path))
+                with open(whitelist_file, "r", encoding="UTF-8") as ins:
+                    for line in ins:
+                        line = line.strip(" \t\n\r")
+
+                        if line and line[0] != "#":
+                            self._exclusions.add(line)
+
+        self.logger.info("Processing whitelist sources...")
+
+        self._merge_whitelist_file.seek(0)  # reset file pointer
+        merge_whitelist_file_lines = self._merge_whitelist_file.readlines()
+
+        try:
+            for l in tqdm(range(len(merge_whitelist_file_lines))):
+                line = merge_whitelist_file_lines[l].decode("UTF-8").strip()
+
+                if line and line[0] != "#" and line[:3] != "::1":
+                    target_ip, hostname, comment = self._normalize_rule(line)
+
+                    if hostname:
+                        self._exclusions.add(hostname)
+        except (KeyboardInterrupt, SystemExit):
+            self._merge_whitelist_file.close()
+            raise exceptions.KeyboardInterruption()
+
+        self._merge_whitelist_file.close()
 
     def _populate_final_file(self):
         """Populate the final hosts file.
@@ -796,71 +895,52 @@ class HostsManager(object):
         """
         self.logger.info("Populating the new generated hosts file...")
 
-        self.logger.info("Populating the exclusions list...")
-
-        for whitelist_file in [self._profile_whitelist_path, self._global_whitelist_path]:
-            if os.path.isfile(whitelist_file):
-                self.logger.info("Adding data from <%s>..." %
-                                 os.path.relpath(whitelist_file, _user_data_path))
-                with open(whitelist_file, "r", encoding="UTF-8") as ins:
-                    for line in ins:
-                        line = line.strip(" \t\n\r")
-
-                        if line and line[0] is not "#":
-                            self._exclusions.add(line)
-
         if self._dry_run:
             self._final_file = NamedTemporaryFile(prefix="generated-hosts-file-", delete=False)
         else:
             self._final_file = open(self._hosts_file_path, "w+b")
 
-        self._merge_file.seek(0)  # reset file pointer
+        self._merge_blacklist_file.seek(0)  # reset file pointer
+
         hostnames = {
+            "0.0.0.0"
+            "broadcasthost",
+            "ip6-allhosts",
+            "ip6-allnodes",
+            "ip6-allrouters",
+            "ip6-localhost",
+            "ip6-localnet",
+            "ip6-loopback",
+            "ip6-mcastprefix",
+            "local",
             "localhost",
             "localhost.localdomain",
-            "local",
-            "broadcasthost"
         }
 
         cache_size = 250000
         cache_storage = ""
 
-        merge_file_lines = self._merge_file.readlines()
-        processed_lines = len(merge_file_lines)
+        merge_blacklist_file_lines = self._merge_blacklist_file.readlines()
+        processed_lines = len(merge_blacklist_file_lines)
 
         self.logger.info("Adding rules to the final hosts file...")
         try:
             # DO NOT USE "continue" INSIDE THIS LOOP!!!
-            for l in tqdm(range(len(merge_file_lines))):
-                line = merge_file_lines[l]
+            for l in tqdm(range(len(merge_blacklist_file_lines))):
+                line = merge_blacklist_file_lines[l].decode("UTF-8").strip()
                 processed_lines -= 1
-                write_line = True
                 normalized_rule = ""
 
-                # Explicit encoding.
-                line = line.decode("UTF-8")
-
-                line = line.strip()
-
-                # Trim periods: See https://github.com/StevenBlack/hosts/issues/271
-                # line = line.rstrip(".")
-
-                # Set line to "" instead of using continue. This is to avoid exiting the loop
+                # Do not use continue. This is to avoid exiting the loop
                 # while there is still data stored inside cache_storage.
-                if line and (line[0] == "#" or "::1" in line):
-                    line = ""
-
-                if line:
+                if line and line[0] != "#" and line[:3] != "::1":
                     # Normalize rule.
                     target_ip, hostname, comment = self._normalize_rule(line)
 
-                    # Changing self._exclusions from a list to a set improved items iterations
-                    # from ~50.000 it/s to ~75.000 it/s.
-                    if hostname in self._exclusions:
-                        write_line = False
-
-                    if write_line:
-                        if comment and self._keep_domain_comments:
+                    # Changing self._exclusions from a list to a set improved items
+                    # iterations from ~50.000 it/s to ~75.000 it/s.
+                    if hostname and hostname not in self._exclusions:
+                        if comment and self._settings["keep_domain_comments"]:
                             normalized_rule = "%s %s #%s" % (target_ip, hostname, comment)
                         else:
                             normalized_rule = "%s %s" % (target_ip, hostname)
@@ -876,10 +956,10 @@ class HostsManager(object):
                     cache_storage = ""
                     cache_size = 250000
         except (KeyboardInterrupt, SystemExit):
-            self._merge_file.close()
+            self._merge_blacklist_file.close()
             raise exceptions.KeyboardInterruption()
 
-        self._merge_file.close()
+        self._merge_blacklist_file.close()
 
     def _normalize_rule(self, line):
         """Standardize and format the rule string provided.
@@ -891,7 +971,7 @@ class HostsManager(object):
 
         Returns
         -------
-        The rules elements : tuple
+        tuple
             The rules elements.
         """
         try:
@@ -903,16 +983,16 @@ class HostsManager(object):
 
         try:
             try:
-                # In "ip host" format.
+                # In "ip host" format. Most likely a line from a file in hosts format.
                 hostname = rule_parts[1].lower()
             except Exception:
-                # In "host" format.
+                # In "host" format. Most likely a line for a file with a list of domains.
                 hostname = rule_parts[0].lower()
         except Exception:
             hostname = None
 
         if hostname and is_valid_host(hostname):
-            return self._target_ip, hostname, comment
+            return self._settings["target_ip"], hostname, comment
         else:
             self._number_of_ignores += 1
             self.logger.warning("Ignored line: %s" % line, term=False, date=False)
@@ -923,9 +1003,6 @@ class HostsManager(object):
 def is_valid_host(host):
     """IDN compatible domain validation.
 
-    Based on answers from a
-    `StackOverflow question <https://stackoverflow.com/questions/2532053/validate-a-hostname-string>`__
-
     Parameters
     ----------
     host : str
@@ -935,6 +1012,11 @@ def is_valid_host(host):
     -------
     bool
         Whether the host name is valid or not.
+
+    Note
+    ----
+    Based on: `Validate-a-hostname-string \
+    <https://stackoverflow.com/questions/2532053/validate-a-hostname-string>`__
     """
     host = host.rstrip(".")
 
@@ -989,7 +1071,7 @@ def flush_dns_cache(dry_run=False, logger=None):
     logger : object
         See <class :any:`LogSystem`>.
     """
-    print(Ansi.PURPLE("""Flushing the DNS cache to utilize new hosts file...
+    print(Ansi.LIGHT_MAGENTA("""Flushing the DNS cache to utilize new hosts file...
 Flushing the DNS cache requires administrative privileges.
 You will need to enter your password.
 """))
