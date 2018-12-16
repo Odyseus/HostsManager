@@ -118,7 +118,7 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
         self.a = docopt_args
         self._cli_header_blacklist = [self.a["--manual"]]
 
-        super().__init__(__appname__, "UserData/logs")
+        super().__init__(__appname__)
 
         if self.a["--manual"]:
             self.func_names.append("display_manual_page")
@@ -129,8 +129,8 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
             if self.a["new_profile"]:
                 self.func_names.append("new_profile_generation")
         elif self.a["server"]:
-            self.logger.info("Command: server")
-            self.logger.info("Arguments:")
+            self.logger.info("**Command:** server")
+            self.logger.info("**Arguments:**")
 
             if self.a["start"]:
                 self.logger.info("start")
@@ -152,7 +152,7 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
 
             if override_errors:
                 self.logger.warning(
-                    "Exiting due to errors found while processing the provided overrides:", date=False)
+                    "**Exiting due to errors found while processing the provided overrides:**", date=False)
 
                 for error in override_errors:
                     self.logger.info(shell_utils.get_cli_separator(), date=False)
@@ -164,8 +164,8 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
                                                         dry_run=self.a["--dry-run"],
                                                         settings_overrides=overrides_validator.get_valid_overrides(),
                                                         logger=self.logger)
-            self.logger.info("Command: run")
-            self.logger.info("Arguments:")
+            self.logger.info("**Command:** run")
+            self.logger.info("**Arguments:**")
 
             if self.a["update"]:
                 self.logger.info("update")
