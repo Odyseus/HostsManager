@@ -1,8 +1,8 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "APP.PY" "1" "Nov 27, 2018" "" "Hosts Manager"
+.TH "APP.PY" "1" "Dec 16, 2018" "" "Hosts Manager"
 .SH NAME
-app.py \- A CLI utility to manage hosts files on GNU/Linux.
+app.py \- CLI utility to manage hosts files on GNU/Linux.
 .
 .nr rst2man-indent-level 0
 .
@@ -84,6 +84,8 @@ A \fBblacklist\fP file contains a list of host names that \fBwill ALWAYS be adde
 The \fBconf.py\fP file should contain at least a property named \fBsources\fP (mandatory \- a list of dictionaries) and another property named \fBsettings\fP (optional \- a dictionary).
 .IP \(bu 2
 This application can process text files formatted as a hosts file (\fB0.0.0.0 hostname.com\fP one rule per line), text files formatted as a list of host names (\fBhostname.com\fP one domain per line) and archives (7Zip files, Zip files and compressed and non\-compressed Tar files) containing any of the aforementioned text files.
+.IP \(bu 2
+If one wants to use data from sources in any other format, the data can be \fIpre\-processed\fP\&. See \fI\%pre_processors data key\fP\&.
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -114,7 +116,7 @@ Some file system changes will be performed (e.g., temporary files creation).
 .SS Commands
 .SS app.py run
 .sp
-The main command to update, build and install a hosts file.
+The main command to \fBupdate\fP, \fBbuild\fP and \fBinstall\fP a hosts file.
 .SS Sub\-commands
 .INDENT 0.0
 .IP \(bu 2
@@ -265,6 +267,8 @@ In case that the \fBsettings\fP property is not defined or any of its keys are n
 .IP \(bu 2
 \fBskip_static_hosts\fP (\fBBoolean\fP) (\fBDefault\fP: False): Skip or not the static host names at the beginning of the file (localhost, localhost.localdomain, local, etc.).
 .IP \(bu 2
+\fBcustom_static_hosts\fP (\fBDefault\fP: empty): A list of rules that can be used as static hosts in addition to the ones added by default by this application (If the option \fBskip_static_hosts\fP is set to \fBFalse\fP). A \fIPython placeholder\fP can be used (the \fB{host_name}\fP will be replaced by the system host name).
+.IP \(bu 2
 \fBbackup_old_generated_hosts\fP (\fBBoolean\fP) (\fBDefault\fP: True): Backup or not the previously generated hosts file before generating the new one.
 .IP \(bu 2
 \fBbackup_system_hosts\fP (\fBBoolean\fP) (\fBDefault\fP: True): Backup or not the currently in use hosts file before replacing it.
@@ -278,7 +282,9 @@ In case that the \fBsettings\fP property is not defined or any of its keys are n
 .IP \(bu 2
 \fBurl\fP (\fBMandatory\fP): The URL for the direct download of the source file.
 .IP \(bu 2
-\fBfrequency\fP (\fBDefault\fP: m): Frequency in which the source files should be downloaded.
+\fBis_whitelist\fP (\fBBoolean\fP): If set to \fBTrue\fP, all host names found in a source will be added to the exclusions list (will not be added to the final hosts file).
+.IP \(bu 2
+\fBfrequency\fP (\fBDefault\fP: \fBm\fP): Frequency in which the source files should be downloaded.
 .INDENT 2.0
 .INDENT 3.5
 .INDENT 0.0
@@ -293,26 +299,46 @@ In case that the \fBsettings\fP property is not defined or any of its keys are n
 .UNINDENT
 .UNINDENT
 .UNINDENT
+.UNINDENT
+.INDENT 0.0
 .IP \(bu 2
-\fBunzip_prog\fP (\fBMandatory for archives\fP): The name of the command used to decompress the downloaded file. Needless to say, the command should be available on the system. Possible values: \fBunzip\fP, \fB7z\fP or \fBtar\fP\&.
+\fBpre_processors\fP (\fBList\fP) (\fBDefault\fP: empty): Methods used to manipulate the data from the downloaded sources so the result of the manipulation can be processed by this application to generate a hosts file.
+.INDENT 2.0
+.INDENT 3.5
+.INDENT 0.0
 .IP \(bu 2
-\fBunzip_target\fP (\fBMandatory for archives\fP): The name of the file to extract inside the compressed file.
+\fBurl_parser\fP: It converts a list of URLs separated by new lines and converts them into a list of host names separated by new lines.
 .IP \(bu 2
-\fBuntar_arg\fP (\fBDefault\fP: empty (no decompression argument is passed to \fBtar\fP)): The decompress argument used by the \fBtar\fP program. Possible values are \fB\-\-xz\fP, \fB\-J\fP, \fB\-\-gzip\fP, \fB\-z\fP, \fB\-\-bzip2\fP or \fB\-j\fP\&.
+\fBjson_array\fP: It converts a string representing a JSON array of strings into a string that will contain each element of the array separated by new lines.
 .IP \(bu 2
-\fBdescription\fP: A brief description of the source and its content.
-.IP \(bu 2
-\fBhomeurl\fP: A home URL for the source.
-.IP \(bu 2
-\fBissues\fP: An URL were to report issues with the source.
-.IP \(bu 2
-\fBlicense\fP: The license for the downloaded file.
+Custom method (\fBMethod\fP): The name of a custom function declared inside the \fBUserData/profiles/<profle_name>/conf.py\fP file that can manipulate the data from a source in any way necessary. It accepts two parameters; \fBsource_data\fP (mandatory), the data that needs to be manipulated; and \fBlogger\fP (optional), see \fBLogSystem\fP\&. It should return a string that can be processed by this application.
 .UNINDENT
 .sp
 \fBNOTE:\fP
 .INDENT 0.0
 .INDENT 3.5
-The \fBdescription\fP, \fBhomeurl\fP, \fBissues\fP and \fBlicense\fP keys are merely informative. They aren\(aqt used by this application in any way.
+.INDENT 0.0
+.IP \(bu 2
+Pre\-processors can be chained to be able to modify the data from a source several times in different ways.
+.IP \(bu 2
+Pre\-processors are executed in the order that they are declared in the \fBpre_processors\fP key.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fBunzip_prog\fP (\fBMandatory for archives\fP): The name of the command used to decompress the downloaded file. Needless to say, the command should be available on the system. Possible values: \fBunzip\fP, \fBgzip\fP, \fB7z\fP or \fBtar\fP\&.
+.IP \(bu 2
+\fBunzip_target\fP (\fBMandatory for archives\fP): The name of the file to extract inside the compressed file.
+.IP \(bu 2
+\fBuntar_arg\fP (\fBDefault\fP: empty (no decompression argument is passed to \fBtar\fP)): The decompress argument used by the \fBtar\fP program. Possible values are \fB\-\-xz\fP, \fB\-J\fP, \fB\-\-gzip\fP, \fB\-z\fP, \fB\-\-bzip2\fP or \fB\-j\fP\&.
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Any other key that one dims to be necessary for informative purposes can be added (e.g., \fBdescription\fP, \fBhomeurl\fP, \fBissues\fP, \fBlicense\fP, etc.). They will not be used by this application in any way.
 .UNINDENT
 .UNINDENT
 .SH AUTHOR
