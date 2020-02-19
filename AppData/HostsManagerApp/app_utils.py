@@ -315,13 +315,14 @@ class HostsManager(object):
             raise exceptions.MissingSourcesOnConfigFile(
                 "The 'sources' variable is not declared or it's empty.")
 
-        json_schema_utils.validate(
-            self._sources, sources_schema,
-            error_message_extra_info="\n".join([
-                "File: %s" % os.path.join(self._profile_path, "conf.py"),
-                "Data key: sources"
-            ]),
-            logger=self.logger)
+        if json_schema_utils.JSONSCHEMA_INSTALLED:
+            json_schema_utils.validate(
+                self._sources, sources_schema,
+                error_message_extra_info="\n".join([
+                    "File: %s" % os.path.join(self._profile_path, "conf.py"),
+                    "Data key: sources"
+                ]),
+                logger=self.logger)
 
         names = set()
         errors = []
