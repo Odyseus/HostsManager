@@ -21,6 +21,7 @@ from .__init__ import __appdescription__
 from .__init__ import __appname__
 from .__init__ import __status__
 from .__init__ import __version__
+from .python_utils import bottle_utils
 from .python_utils import cli_utils
 from .python_utils import exceptions
 from .python_utils import shell_utils
@@ -107,6 +108,7 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
     """
     # Execution order depends on the order the function names were appended.
     func_names = []
+    www_root = os.path.join(root_folder, "UserData", "block_page")
 
     def __init__(self, docopt_args):
         """
@@ -253,16 +255,19 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
         action : str, optional
             Any of the following: start/stop/restart.
         """
-        www_root = os.path.join(root_folder, "UserData", "block_page")
-        os.chdir(www_root)
-        cmd_path = os.path.join(root_folder, "AppData", "data", "python_scripts", "http_server")
+        app_slug = "HostsManager"
+        web_app_path = os.path.abspath(os.path.join(root_folder, "AppData",
+                                                    "%sApp" % app_slug,
+                                                    "%s_webapp.py" % app_slug))
 
-        # Use of os.execv() so at the end only one process is left executing.
-        # The "http_server" executable also uses os.execv() to launch the real web application.
-        os.execv(cmd_path, [" "] + [action,
-                                    "HostsManager",
-                                    self.a["--host"],
-                                    self.a["--port"]])
+        bottle_utils.handle_server(action=action,
+                                   server_args={
+                                       "www_root": self.www_root,
+                                       "web_app_path": web_app_path,
+                                       "host": self.a["--host"],
+                                       "port": self.a["--port"]
+                                   },
+                                   logger=self.logger)
 
     def http_server_start(self):
         """Self explanatory.

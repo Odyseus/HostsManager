@@ -4,8 +4,6 @@
 
 Attributes
 ----------
-bottle_app : object
-    Bottle application.
 root_folder : str
     The "root of the website". The root of the folder were the website files are stored and
     from were this web application is launched.
@@ -13,45 +11,33 @@ root_folder : str
 import os
 import sys
 
+# NOTE: Failsafe imports due to this file being used as a script (when launching the server)
+# and as a module (when generating documentation with Sphinx).
 try:
-    from python_utils import bottle
+    from python_utils.bottle_utils import bottle_app
+    from python_utils.bottle_utils import WebApp
 except (ImportError, SystemError):
-    from .python_utils import bottle
+    from .python_utils.bottle_utils import bottle_app
+    from .python_utils.bottle_utils import WebApp
 
 root_folder = os.path.realpath(os.path.abspath(os.path.join(
     os.path.normpath(os.getcwd()))))
 
-bottle_app = bottle.Bottle()
 
-
-class HostsManager():
-    """Hosts manager web application.
-
-    Attributes
-    ----------
-    host : str
-        Host name used by the web application.
-    port : int
-        Port number used by the web application.
+class HostsManager(WebApp):
+    """Web server.
     """
-
-    def __init__(self, host, port):
-        """Initialize.
+    def __init__(self, *args, **kwargs):
+        """Initialization.
 
         Parameters
         ----------
-        host : str
-            Host name used by the web application.
-        port : int
-            Port number used by the web application.
+        *args
+            Arguments.
+        **kwargs
+            Keyword arguments.
         """
-        self.host = host
-        self.port = port
-
-    def run(self):
-        """Run.
-        """
-        bottle_app.run(host=self.host, port=self.port)
+        super().__init__(*args, **kwargs)
 
     @bottle_app.route("/")
     def index():
