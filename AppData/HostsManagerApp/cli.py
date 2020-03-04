@@ -105,6 +105,8 @@ class CommandLineInterface(cli_utils.CommandLineInterfaceSuper):
         The name of the functions to run.
     hosts_manager : object
         See <class :any:`app_utils.HostsManager`>.
+    www_root : str
+        Path to the folder that will be served by the web server.
     """
     # Execution order depends on the order the function names were appended.
     func_names = []

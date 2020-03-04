@@ -436,15 +436,15 @@ class HostsManager(object):
     def update_all_sources(self, force_update):
         """Update all host files, regardless of folder depth.
 
-        Raises
-        ------
-        exceptions.KeyboardInterruption
-            See <class :any:`exceptions.KeyboardInterruption`>.
-
         Parameters
         ----------
         force_update : bool
             Ignore source update frequency and update its file/s anyway.
+
+        Raises
+        ------
+        exceptions.KeyboardInterruption
+            See <class :any:`exceptions.KeyboardInterruption`>.
         """
         self._log_shell_separator("#")
         self.logger.info("Updating sources...")

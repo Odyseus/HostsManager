@@ -1,6 +1,13 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """Schemas for JSON data validation.
+
+Attributes
+----------
+settings_schema : dict
+    JSON schema.
+sources_schema : dict
+    JSON schema.
 """
 settings_schema = {
     "description": "Schema to validate the 'settings' property inside the UserData/conf.py file.",

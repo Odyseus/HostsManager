@@ -1,6 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """Module with utility functions to process data.
+
+Attributes
+----------
+pre_processors : dict
+    Available pre-processors.
 """
 import json
 
