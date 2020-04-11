@@ -379,13 +379,14 @@ class HostsManager(object):
     def _validate_option_keys(self):
         """Validate keys.
         """
-        json_schema_utils.validate(
-            self._settings, settings_schema,
-            error_message_extra_info="\n".join([
-                "File: %s" % os.path.join(self._profile_path, "conf.py"),
-                "Data key: settings"
-            ]),
-            logger=self.logger)
+        if json_schema_utils.JSONSCHEMA_INSTALLED:
+            json_schema_utils.validate(
+                self._settings, settings_schema,
+                error_message_extra_info="\n".join([
+                    "File: %s" % os.path.join(self._profile_path, "conf.py"),
+                    "Data key: settings"
+                ]),
+                logger=self.logger)
 
     def install_hosts_file(self):
         """Install the generated hosts file.
