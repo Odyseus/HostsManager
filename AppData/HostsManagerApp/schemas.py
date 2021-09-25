@@ -10,7 +10,7 @@ sources_schema : dict
     JSON schema.
 """
 settings_schema = {
-    "description": "Schema to validate the 'settings' property inside the UserData/conf.py file.",
+    "description": "Schema to validate the 'settings' property inside the UserData/profiles/name/config.yaml file.",
     "type": "object",
     "additionalProperties": False,
     "required": [
@@ -66,7 +66,7 @@ settings_schema = {
 
 
 sources_schema = {
-    "description": "Schema to validate the 'sources' property inside the UserData/conf.py file.",
+    "description": "Schema to validate the 'sources' property inside the UserData/profiles/name/config.yaml file.",
     "type": "array",
     "minItems": 1,
     "additionalItems": True,

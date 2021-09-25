@@ -8,8 +8,6 @@ root_folder : str
     The main folder containing the application. All commands must be executed from this location
     without exceptions.
 """
-
-import json
 import os
 import re
 import time
@@ -18,7 +16,6 @@ from collections import Callable
 from datetime import datetime
 from datetime import timedelta
 from ipaddress import ip_address
-from runpy import run_path
 from shutil import copy2
 from shutil import rmtree
 from socket import gethostname
@@ -33,6 +30,7 @@ from .python_utils import json_schema_utils
 from .python_utils import shell_utils
 from .python_utils import string_utils
 from .python_utils import tqdm_wget
+from .python_utils import yaml_utils
 from .python_utils.ansi_colors import Ansi
 from .python_utils.tqdm import tqdm
 from .schemas import settings_schema
@@ -239,12 +237,13 @@ class HostsManager(object):
         self._profile_path = os.path.join(_profiles_path, profile)
 
         try:
-            config_file = run_path(os.path.join(self._profile_path, "conf.py"))
+            with open(os.path.join(self._profile_path, "config.yaml"), "r") as config_file:
+                config = yaml_utils.load(config_file)
         except Exception as err:
             self.logger.error(err, term=False)
             raise exceptions.MissingConfigFileForProfile(err)
 
-        self._sources = config_file.get("sources", None)
+        self._sources = config.get("sources", None)
 
         self._validate_sources()
 
@@ -259,7 +258,7 @@ class HostsManager(object):
             "max_backups_to_keep": 10,
         }
 
-        profile_settings = config_file.get("settings", {})
+        profile_settings = config.get("settings", {})
         profile_settings.update(settings_overrides)
 
         self._settings.update(profile_settings)
@@ -281,7 +280,7 @@ class HostsManager(object):
         sources_storage = os.path.join(self._profile_path, "sources_storage")
         self._sources_storage_raw = os.path.join(sources_storage, "raw")
         self._sources_storage_compressed = os.path.join(sources_storage, "compressed")
-        self._sources_last_updated = os.path.join(self._profile_path, "last_updated.json")
+        self._sources_last_updated = os.path.join(self._profile_path, "last-updated.yaml")
         self._backups_storage = os.path.join(self._profile_path, "backups_storage")
         self._profile_whitelist_path = os.path.join(self._profile_path, "whitelist")
         self._global_whitelist_path = os.path.join(_user_data_path, "global_whitelist")
@@ -319,7 +318,7 @@ class HostsManager(object):
             json_schema_utils.validate(
                 self._sources, sources_schema,
                 error_message_extra_info="\n".join([
-                    "File: %s" % os.path.join(self._profile_path, "conf.py"),
+                    "File: %s" % os.path.join(self._profile_path, "config.yaml"),
                     "Data key: sources"
                 ]),
                 logger=self.logger)
@@ -351,7 +350,7 @@ class HostsManager(object):
         """
         try:
             with open(self._sources_last_updated, "r", encoding="UTF-8") as json_file:
-                self._last_update_data = json.loads(json_file.read())
+                self._last_update_data = yaml_utils.load(json_file)
         except Exception:
             self._last_update_data = {}
 
@@ -383,7 +382,7 @@ class HostsManager(object):
             json_schema_utils.validate(
                 self._settings, settings_schema,
                 error_message_extra_info="\n".join([
-                    "File: %s" % os.path.join(self._profile_path, "conf.py"),
+                    "File: %s" % os.path.join(self._profile_path, "config.yaml"),
                     "Data key: settings"
                 ]),
                 logger=self.logger)
@@ -484,7 +483,7 @@ class HostsManager(object):
                                         self._sources_last_updated)
             else:
                 with open(self._sources_last_updated, "w", encoding="UTF-8") as data_file:
-                    data_file.write(json.dumps(self._last_update_data, indent=4, sort_keys=True))
+                    yaml_utils.dump(self._last_update_data, data_file)
 
         if self._compressed_sources:
             self._handle_compressed_sources()
@@ -1161,7 +1160,7 @@ def new_profile_generation(logger):
         See <class :any:`LogSystem`>.
     """
     from.python_utils import prompts, template_utils
-    config_template = os.path.join(root_folder, "AppData", "data", "templates", "conf.py")
+    config_template = os.path.join(root_folder, "AppData", "data", "templates", "config.yaml")
 
     d = {
         "name": "default"
@@ -1176,7 +1175,7 @@ def new_profile_generation(logger):
         new_profile_generation(logger)
     else:
         os.makedirs(new_profile_path, exist_ok=True)
-        config_path = os.path.join(new_profile_path, "conf.py")
+        config_path = os.path.join(new_profile_path, "config.yaml")
         template_utils.generate_from_template(config_template, config_path, logger=logger)
         logger.info("New profile generated.")
 

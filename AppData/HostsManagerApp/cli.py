@@ -65,7 +65,7 @@ Options:
 
 -o <key=value>, --override=<key=value>
     One or more sets of <key=value> that will override the configuration
-    options set in the conf.py file.
+    options set in the config.yaml file.
 
 -f, --flush-dns-cache
     Attempt to flush DNS cache for the new hosts file to take effect.
