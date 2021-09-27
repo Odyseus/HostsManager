@@ -349,8 +349,8 @@ class HostsManager(object):
         """Add additional data to the sources.
         """
         try:
-            with open(self._sources_last_updated, "r", encoding="UTF-8") as json_file:
-                self._last_update_data = yaml_utils.load(json_file)
+            with open(self._sources_last_updated, "r", encoding="UTF-8") as yaml_file:
+                self._last_update_data = yaml_utils.load(yaml_file)
         except Exception:
             self._last_update_data = {}
 
