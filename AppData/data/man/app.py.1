@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "APP.PY" "1" "Mar 20, 2020" "" "Hosts Manager"
+.TH "APP.PY" "1" "Sep 27, 2021" "" "Hosts Manager"
 .SH NAME
 app.py \- CLI utility to manage hosts files on GNU/Linux.
 .
@@ -63,6 +63,18 @@ Application inspired and heavily based on the \fBupdateHostsFile.py\fP Python sc
 .SH REQUIREMENTS
 .sp
 No mayor requirements are needed to run this application other than Python 3.5+.
+.INDENT 0.0
+.INDENT 3.5
+.IP "Optional dependencies"
+.INDENT 0.0
+.IP \(bu 2
+\fBjsonschema>3\fP Python module.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS \fBjsonschema\fP module
+.sp
+The \fBjsonschema\fP module is used to validate all data used by this CLI application. If not installed, the data will simply not be validated.
 .SH DETAILED USAGE
 .INDENT 0.0
 .INDENT 3.5
@@ -71,7 +83,7 @@ No mayor requirements are needed to run this application other than Python 3.5+.
 .IP \(bu 2
 This application works with \fIprofiles\fP stored in \fBUserData/profiles\fP\&.
 .IP \(bu 2
-A profile is just a folder that contains a configuration file (\fBUserData/profiles/<profle_name>/conf.py\fP) and where all downloaded sources are stored and processed to generate a hosts file.
+A profile is just a folder that contains a configuration file (\fBUserData/profiles/<profle_name>/config.yaml\fP) and where all downloaded sources are stored and processed to generate a hosts file.
 .IP \(bu 2
 Each profile can have files named \fBwhitelist\fP and \fBblacklist\fP which contain a host name per line without inline comments.
 .IP \(bu 2
@@ -81,7 +93,7 @@ A \fBwhitelist\fP file contains a list of host names that \fBwill NEVER be added
 .IP \(bu 2
 A \fBblacklist\fP file contains a list of host names that \fBwill ALWAYS be added\fP to the final hosts file.
 .IP \(bu 2
-The \fBconf.py\fP file should contain at least a property named \fBsources\fP (mandatory \- a list of dictionaries) and another property named \fBsettings\fP (optional \- a dictionary).
+The \fBconfig.yaml\fP file should contain at least a property named \fBsources\fP (mandatory \- a list of dictionaries) and another property named \fBsettings\fP (optional \- a dictionary).
 .IP \(bu 2
 This application can process text files formatted as a hosts file (\fB0.0.0.0 hostname.com\fP one rule per line), text files formatted as a list of host names (\fBhostname.com\fP one domain per line) and archives (7Zip files, Zip files and compressed and non\-compressed Tar files) containing any of the aforementioned text files.
 .IP \(bu 2
@@ -120,7 +132,7 @@ The main command to \fBupdate\fP, \fBbuild\fP and \fBinstall\fP a hosts file.
 .SS Sub\-commands
 .INDENT 0.0
 .IP \(bu 2
-\fBupdate\fP: Update all sources defined inside the \fBconf.py\fP file.
+\fBupdate\fP: Update all sources defined inside the \fBconfig.yaml\fP file.
 .IP \(bu 2
 \fBbuild\fP: Build a hosts file based on the downloaded sources.
 .IP \(bu 2
@@ -131,7 +143,7 @@ The main command to \fBupdate\fP, \fBbuild\fP and \fBinstall\fP a hosts file.
 .IP \(bu 2
 \fB\-p <name>\fP or \fB\-\-profile=<name>\fP: The profile name to work with. This is actually the name of a folder inside the \fBUserData/profiles\fP folder.
 .IP \(bu 2
-\fB\-o <key=value>\fP or \fB\-\-override=<key=value>\fP: One or more sets of \fB<key=value>\fP that will override the configuration options set inside a profile\(aqs \fBconf.py\fP file.
+\fB\-o <key=value>\fP or \fB\-\-override=<key=value>\fP: One or more sets of \fB<key=value>\fP that will override the configuration options set inside a profile\(aqs \fBconfig.yaml\fP file.
 .IP \(bu 2
 \fB\-u\fP or \fB\-\-force\-update\fP: Force the update of all sources, ignoring the frequency in which they should be updated.
 .IP \(bu 2
@@ -194,58 +206,40 @@ It will also ask for bash completions creation.
 .UNINDENT
 .UNINDENT
 .SH FILE TEMPLATES
-.SS conf.py template
+.SS config.yaml template
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-# START conf.py
-#!/usr/bin/python3
-# \-*\- coding: utf\-8 \-*\-
-"""Practical example configuration file.
-
-Attributes
-\-\-\-\-\-\-\-\-\-\-
-settings : dict, optional
-    See documentation/manual for details.
-sources : list, mandatory
-    See documentation/manual for details.
-"""
-
-settings = {
-    "target_ip": "0.0.0.0",
-    "keep_domain_comments": False,
-    "skip_static_hosts": False,
-    "backup_old_generated_hosts": True,
-    "backup_system_hosts": True,
-    "max_backups_to_keep": 10,
-}
-
-sources = [
-    {
-        "name": "MVPS hosts file",
-        "url": "http://winhelp2002.mvps.org/hosts.txt",
-        "frequency": "m",
-        "description": "The purpose of this site is to provide the user with a high quality custom HOSTS file.",
-        "homeurl": "http://winhelp2002.mvps.org/",
-        "issues": "mailto:winhelp2002@gmail.com",
-        "license": "CC BY\-NC\-SA 4.0"
-    }, {
-        "name": "Malwarebytes hpHosts",
-        "url": "http://hosts\-file.net/download/hosts.zip",
-        "unzip_prog": "unzip",
-        "unzip_target": "hosts.txt",
-        "frequency": "s",
-        "description": "hpHosts is a community managed and maintained hosts file that allows an additional layer of protection against access to ad, tracking and malicious websites.",
-        "homeurl": "https://hosts\-file.net",
-        "license": "Freeware"
-    }
-]
-
-if __name__ == "__main__":
-    pass
-# END conf.py
+# START config.yaml
+settings:
+    backup_old_generated_hosts: true
+    backup_system_hosts: true
+    keep_domain_comments: false
+    max_backups_to_keep: 10
+    skip_static_hosts: false
+    target_ip: 0.0.0.0
+sources:
+    \- description: The purpose of this site is to provide the user with a high quality
+          custom HOSTS file.
+      frequency: m
+      homeurl: http://winhelp2002.mvps.org/
+      issues: mailto:winhelp2002@gmail.com
+      license: CC BY\-NC\-SA 4.0
+      name: MVPS hosts file
+      url: http://winhelp2002.mvps.org/hosts.txt
+    \- description: hpHosts is a community managed and maintained hosts file that allows
+          an additional layer of protection against access to ad, tracking and malicious
+          websites.
+      frequency: s
+      homeurl: https://hosts\-file.net
+      license: Freeware
+      name: Malwarebytes hpHosts
+      unzip_prog: unzip
+      unzip_target: hosts.txt
+      url: http://hosts\-file.net/download/hosts.zip
+# END config.yaml
 
 .ft P
 .fi
@@ -313,7 +307,7 @@ In case that the \fBsettings\fP property is not defined or any of its keys are n
 .IP \(bu 2
 \fBjson_array\fP: It converts a string representing a JSON array of strings into a string that will contain each element of the array separated by new lines.
 .IP \(bu 2
-Custom method (\fBMethod\fP): The name of a custom function declared inside the \fBUserData/profiles/<profle_name>/conf.py\fP file that can manipulate the data from a source in any way necessary. It accepts two parameters; \fBsource_data\fP (mandatory), the data that needs to be manipulated; and \fBlogger\fP (optional), see \fBLogSystem\fP\&. It should return a string that can be processed by this application.
+Custom method (\fBMethod\fP): The name of a custom function declared inside the \fBUserData/profiles/<profle_name>/config.yaml\fP file that can manipulate the data from a source in any way necessary. It accepts two parameters; \fBsource_data\fP (mandatory), the data that needs to be manipulated; and \fBlogger\fP (optional), see \fBLogSystem\fP\&. It should return a string that can be processed by this application.
 .UNINDENT
 .sp
 \fBNOTE:\fP
@@ -346,6 +340,6 @@ Any other key that one dims to be necessary for informative purposes can be adde
 .SH AUTHOR
 Odyseus
 .SH COPYRIGHT
-2016-2020, Odyseus.
+2016-2021, Odyseus.
 .\" Generated by docutils manpage writer.
 .
