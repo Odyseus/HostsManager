@@ -11,7 +11,7 @@ import os
 import re
 import time
 
-from collections import Callable
+from collections.abc import Callable
 from datetime import datetime
 from datetime import timedelta
 from ipaddress import ip_address
